@@ -1,7 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const authRoutes = require('./routes/auth');
 
 // Load environment variables with higher priority
@@ -93,8 +92,14 @@ app.use((req, res) => {
 // Connect to MongoDB
 console.log('🔗 Attempting to connect to MongoDB...');
 
-// Use Atlas URI - prioritize .env file, fallback to hardcoded Atlas URI
-const atlasURI = process.env.MONGODB_URI || 'mongodb+srv://ikathir17:ikathir18@cluster0.ras9gis.mongodb.net/project-dream?retryWrites=true&w=majority';
+// Use Atlas URI from environment variables
+const atlasURI = process.env.MONGODB_URI;
+
+if (!atlasURI) {
+  console.error('❌ MONGODB_URI environment variable is not set');
+  process.exit(1);
+}
+
 console.log('📍 Using URI:', atlasURI);
 
 // Force Atlas connection by explicitly setting options
