@@ -2,25 +2,18 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './OTPVerification.css';
 
-const OTPVerification = ({ mobileNumber, onBack }) => {
+const OTPVerification = ({ mobileNumber, onBack, backendOTP }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [canResend, setCanResend] = useState(false);
-  const [currentOTP, setCurrentOTP] = useState('');
-  const { login } = useAuth();
+  const { verifyOTP } = useAuth();
   
   const inputRefs = useRef([]);
 
-  // Generate a random 6-digit OTP for testing
-  const generateOTP = () => {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setCurrentOTP(otp);
-    return otp;
-  };
-
-  const generatedOTP = currentOTP || generateOTP();
+  // Use the OTP from backend
+  const generatedOTP = backendOTP || '123456';
 
   useEffect(() => {
     // Start countdown timer
@@ -78,17 +71,12 @@ const OTPVerification = ({ mobileNumber, onBack }) => {
       return;
     }
 
-    if (otpString !== generatedOTP) {
-      setError('Invalid OTP. Please check and try again.');
-      return;
-    }
-
     setIsLoading(true);
     
     try {
-      await login(mobileNumber);
+      await verifyOTP(mobileNumber, otpString);
     } catch (err) {
-      setError('Verification failed. Please try again.');
+      setError(err.message || 'Verification failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -99,8 +87,8 @@ const OTPVerification = ({ mobileNumber, onBack }) => {
     setCanResend(false);
     setOtp(['', '', '', '', '', '']);
     setError('');
-    // Generate new OTP
-    generateOTP();
+    // Note: In a real app, this would call the backend to resend OTP
+    // For now, we'll just reset the form
   };
 
   const formatTime = (seconds) => {

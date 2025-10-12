@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import './Profile.css';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -20,11 +20,15 @@ const Profile = () => {
     }));
   };
 
-  const handleSave = () => {
-    // Here you would typically save to a backend
-    console.log('Saving profile:', formData);
-    setIsEditing(false);
-    // Show success message
+  const handleSave = async () => {
+    try {
+      await updateProfile(formData);
+      setIsEditing(false);
+      // Show success message
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      // Show error message
+    }
   };
 
   const handleCancel = () => {

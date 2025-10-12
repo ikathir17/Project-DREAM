@@ -8,7 +8,8 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showOTP, setShowOTP] = useState(false);
-  const { login } = useAuth();
+  const [backendOTP, setBackendOTP] = useState('');
+  const { sendOTP } = useAuth();
 
   const validateMobileNumber = (number) => {
     // Basic mobile number validation (10 digits)
@@ -32,11 +33,15 @@ const Login = () => {
 
     setIsLoading(true);
     
-    // Simulate sending OTP
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const response = await sendOTP(mobileNumber);
+      setBackendOTP(response.data.otp);
       setShowOTP(true);
-    }, 1000);
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBackToLogin = () => {
@@ -53,7 +58,7 @@ const Login = () => {
   };
 
   if (showOTP) {
-    return <OTPVerification mobileNumber={mobileNumber} onBack={handleBackToLogin} />;
+    return <OTPVerification mobileNumber={mobileNumber} onBack={handleBackToLogin} backendOTP={backendOTP} />;
   }
 
   return (

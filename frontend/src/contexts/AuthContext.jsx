@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -17,34 +18,105 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check if user is logged in (from localStorage)
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
+      // Verify token is still valid by fetching profile
+      verifyToken(savedToken);
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
-  const login = (mobileNumber) => {
-    // Simulate login with mobile number
-    const userData = {
-      id: Date.now(),
-      mobileNumber,
-      name: `User ${mobileNumber.slice(-4)}`,
-      loginTime: new Date().toISOString()
-    };
-    
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-    return Promise.resolve(userData);
+  const verifyToken = async (token) => {
+    try {
+      const response = await api.getProfile(token);
+      if (response.success) {
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        localStorage.setItem('token', token);
+      } else {
+        // Token is invalid, clear storage
+        clearAuth();
+      }
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      clearAuth();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const logout = () => {
+  const clearAuth = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  };
+
+  const sendOTP = async (mobileNumber) => {
+    try {
+      const response = await api.sendOTP(mobileNumber);
+      return response;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to send OTP');
+    }
+  };
+
+  const verifyOTP = async (mobileNumber, otp) => {
+    try {
+      const response = await api.verifyOTP(mobileNumber, otp);
+      if (response.success) {
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        localStorage.setItem('token', response.data.token);
+        return response.data;
+      } else {
+        throw new Error(response.message || 'OTP verification failed');
+      }
+    } catch (error) {
+      throw new Error(error.message || 'OTP verification failed');
+    }
+  };
+
+  const updateProfile = async (profileData) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await api.updateProfile(token, profileData);
+      if (response.success) {
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        return response.data;
+      } else {
+        throw new Error(response.message || 'Profile update failed');
+      }
+    } catch (error) {
+      throw new Error(error.message || 'Profile update failed');
+    }
+  };
+
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await api.logout();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      clearAuth();
+    }
   };
 
   const value = {
     user,
-    login,
+    sendOTP,
+    verifyOTP,
+    updateProfile,
     logout,
     isLoading
   };
