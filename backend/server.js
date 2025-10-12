@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
+const complaintRoutes = require('./routes/complaints');
 
 // Load environment variables with higher priority
 const env = require('dotenv').config({ override: true });
@@ -32,6 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/complaints', complaintRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
