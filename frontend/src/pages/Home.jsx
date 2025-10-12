@@ -25,15 +25,15 @@ const Home = () => {
   const [submitMessage, setSubmitMessage] = useState('');
 
   const disasterTypes = [
-    { value: 'flood', label: '🌊 Flood', icon: '🌊' },
-    { value: 'earthquake', label: '🏚️ Earthquake', icon: '🏚️' },
-    { value: 'fire', label: '🔥 Fire', icon: '🔥' },
-    { value: 'cyclone', label: '🌀 Cyclone/Hurricane', icon: '🌀' },
-    { value: 'landslide', label: '⛰️ Landslide', icon: '⛰️' },
-    { value: 'drought', label: '🏜️ Drought', icon: '🏜️' },
-    { value: 'accident', label: '🚨 Accident', icon: '🚨' },
-    { value: 'medical', label: '🏥 Medical Emergency', icon: '🏥' },
-    { value: 'other', label: '⚠️ Other', icon: '⚠️' }
+    { value: 'flood', label: 'Flood' },
+    { value: 'earthquake', label: 'Earthquake' },
+    { value: 'fire', label: 'Fire' },
+    { value: 'cyclone', label: 'Cyclone/Hurricane' },
+    { value: 'landslide', label: 'Landslide' },
+    { value: 'drought', label: 'Drought' },
+    { value: 'accident', label: 'Accident' },
+    { value: 'medical', label: 'Medical Emergency' },
+    { value: 'other', label: 'Other Emergency' }
   ];
 
   const urgencyLevels = [
@@ -44,18 +44,18 @@ const Home = () => {
   ];
 
   const helpTypes = [
-    { value: 'medical', label: '🏥 Medical Aid', icon: '🏥' },
-    { value: 'rescue', label: '🚑 Rescue Operations', icon: '🚑' },
-    { value: 'food', label: '🍞 Food & Water', icon: '🍞' },
-    { value: 'shelter', label: '🏠 Temporary Shelter', icon: '🏠' },
-    { value: 'clothing', label: '👕 Clothing & Blankets', icon: '👕' },
-    { value: 'transport', label: '🚗 Transportation', icon: '🚗' },
-    { value: 'communication', label: '📞 Communication Equipment', icon: '📞' },
-    { value: 'power', label: '⚡ Power/Electricity', icon: '⚡' },
-    { value: 'cleanup', label: '🧹 Cleanup Equipment', icon: '🧹' },
-    { value: 'security', label: '🛡️ Security/Safety', icon: '🛡️' },
-    { value: 'psychological', label: '🧠 Psychological Support', icon: '🧠' },
-    { value: 'financial', label: '💰 Financial Assistance', icon: '💰' }
+    { value: 'medical', label: 'Medical Aid' },
+    { value: 'rescue', label: 'Rescue Operations' },
+    { value: 'food', label: 'Food & Water' },
+    { value: 'shelter', label: 'Temporary Shelter' },
+    { value: 'clothing', label: 'Clothing & Blankets' },
+    { value: 'transport', label: 'Transportation' },
+    { value: 'communication', label: 'Communication Equipment' },
+    { value: 'power', label: 'Power/Electricity' },
+    { value: 'cleanup', label: 'Cleanup Equipment' },
+    { value: 'security', label: 'Security/Safety' },
+    { value: 'psychological', label: 'Psychological Support' },
+    { value: 'financial', label: 'Financial Assistance' }
   ];
 
   const handleInputChange = (e) => {
@@ -93,6 +93,18 @@ const Home = () => {
     }));
   };
 
+  const testBackendPost = async () => {
+    try {
+      const testData = { test: 'data', number: 123 };
+      const result = await api.testPost(testData);
+      console.log('✅ Test POST result:', result);
+      setSubmitMessage('Test POST successful: ' + JSON.stringify(result));
+    } catch (error) {
+      console.error('❌ Test POST failed:', error);
+      setSubmitMessage('Test POST failed: ' + error.message);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -100,7 +112,7 @@ const Home = () => {
 
     // Validate that at least one help type is selected
     if (formData.resourcesNeeded.length === 0) {
-      setSubmitMessage('❌ Please select at least one type of help needed.');
+      setSubmitMessage('Please select at least one type of help needed.');
       setIsSubmitting(false);
       return;
     }
@@ -109,7 +121,7 @@ const Home = () => {
       // Get authentication token
       const token = localStorage.getItem('token');
       if (!token) {
-        setSubmitMessage('❌ Authentication required. Please log in again.');
+        setSubmitMessage('Authentication required. Please log in again.');
         setIsSubmitting(false);
         return;
       }
@@ -128,6 +140,11 @@ const Home = () => {
         audioRecording: formData.audioRecording?.base64 || null
       };
 
+      // Debug logging
+      console.log('📤 Sending complaint data:', complaintData);
+      console.log('📤 Data type:', typeof complaintData);
+      console.log('📤 Data keys:', Object.keys(complaintData));
+
       // Submit complaint to backend
       const response = await api.submitComplaint(token, complaintData);
       
@@ -137,7 +154,7 @@ const Home = () => {
         const audioInfo = formData.audioRecording ? 
           `\nAudio recording included (${Math.round(formData.audioRecording.size / 1024)}KB)` : '';
         
-        setSubmitMessage(`✅ Your complaint has been submitted successfully! 
+        setSubmitMessage(`Your complaint has been submitted successfully! 
         Complaint ID: ${response.data.complaintId}
         Priority: ${response.data.priority}${audioInfo}
         ${response.data.estimatedResponse?.description || 'Emergency response team will contact you soon.'}`);
@@ -160,7 +177,7 @@ const Home = () => {
       });
     } catch (error) {
       console.error('Complaint submission error:', error);
-      setSubmitMessage(`❌ Failed to submit complaint: ${error.message || 'Please try again.'}`);
+      setSubmitMessage(`Failed to submit complaint: ${error.message || 'Please try again.'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -169,7 +186,7 @@ const Home = () => {
   return (
     <div className="home-page">
       <div className="complaint-header">
-        <h2>🚨 Disaster Emergency Complaint Form</h2>
+        <h2>Disaster Emergency Report Form</h2>
         <p>Report disasters and emergencies for immediate response</p>
         <div className="user-info">
           <span>Reporting as: <strong>{user?.name}</strong></span>
@@ -178,7 +195,7 @@ const Home = () => {
 
       <form onSubmit={handleSubmit} className="complaint-form">
         <div className="form-section">
-          <h3>🔍 Disaster Information</h3>
+          <h3>Disaster Information</h3>
           
           <div className="form-group">
             <label htmlFor="disasterType">Type of Disaster/Emergency *</label>
@@ -220,7 +237,7 @@ const Home = () => {
         </div>
 
         <div className="form-section">
-          <h3>📍 Location & Contact</h3>
+          <h3>Location & Contact</h3>
           
           <div className="form-group">
             <label>Exact Location/Address *</label>
@@ -239,12 +256,12 @@ const Home = () => {
               readOnly
             />
             <small className="location-help">
-              📍 Click on the map above to select the exact emergency location
+              Click on the map above to select the exact emergency location
             </small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="contactNumber">Contact Number *</label>
+            <label htmlFor="contactNumber">Emergency Contact Number *</label>
             <input
               type="tel"
               id="contactNumber"
@@ -259,7 +276,7 @@ const Home = () => {
         </div>
 
         <div className="form-section">
-          <h3>📝 Details</h3>
+          <h3>Details</h3>
           
           <div className="form-group">
             <label htmlFor="description">Detailed Description *</label>
@@ -298,7 +315,7 @@ const Home = () => {
             <label>Type of Help/Resources Needed *</label>
             {formData.resourcesNeeded.length > 0 && (
               <div className="selected-help-count">
-                ✅ {formData.resourcesNeeded.length} type{formData.resourcesNeeded.length > 1 ? 's' : ''} of help selected
+                {formData.resourcesNeeded.length} type{formData.resourcesNeeded.length > 1 ? 's' : ''} of help selected
               </div>
             )}
             <div className="help-types-grid">
@@ -308,13 +325,12 @@ const Home = () => {
                   className={`help-type-card ${formData.resourcesNeeded.includes(help.value) ? 'selected' : ''}`}
                   onClick={() => handleHelpTypeChange(help.value)}
                 >
-                  <span className="help-icon">{help.icon}</span>
-                  <span className="help-label">{help.label.replace(/^[^\s]+ /, '')}</span>
+                  <span className="help-label">{help.label}</span>
                 </div>
               ))}
             </div>
             <small className="help-instruction">
-              💡 Click on the cards above to select multiple types of help needed
+              Click on the cards above to select multiple types of help needed
             </small>
           </div>
 
@@ -333,32 +349,35 @@ const Home = () => {
         </div>
 
         {submitMessage && (
-          <div className={`submit-message ${submitMessage.includes('✅') ? 'success' : 'error'}`}>
+          <div className={`submit-message ${submitMessage.includes('successfully') ? 'success' : 'error'}`}>
             {submitMessage}
           </div>
         )}
 
         <div className="form-actions">
           <button
+            type="button"
+            onClick={testBackendPost}
+            className="submit-button"
+            style={{ marginBottom: '10px', backgroundColor: '#059669' }}
+          >
+            Test Backend Connection
+          </button>
+          <button
             type="submit"
             disabled={isSubmitting}
             className="submit-button"
           >
             {isSubmitting ? (
-              <>
-                <span className="spinner"></span>
-                Submitting Complaint...
-              </>
+              'Submitting...'
             ) : (
-              <>
-                🚨 Submit Emergency Complaint
-              </>
+              'Submit Emergency Report'
             )}
           </button>
         </div>
 
         <div className="emergency-note">
-          <p><strong>⚠️ For life-threatening emergencies, call emergency services immediately!</strong></p>
+          <p><strong>For life-threatening emergencies, call emergency services immediately!</strong></p>
           <p>This form is for reporting disasters and coordinating relief efforts.</p>
         </div>
       </form>

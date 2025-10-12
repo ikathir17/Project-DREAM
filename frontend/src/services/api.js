@@ -8,12 +8,15 @@ class ApiService {
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const config = {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-      ...options,
     };
+
+    console.log('🔗 Final request config:', config);
+    console.log('🔗 Final headers:', config.headers);
 
     try {
       const response = await fetch(url, config);
@@ -77,9 +80,15 @@ class ApiService {
 
   // Complaint methods
   async submitComplaint(token, complaintData) {
+    console.log('🔗 API Service - Submitting complaint');
+    console.log('🔗 Token:', token ? 'Present' : 'Missing');
+    console.log('🔗 Data:', complaintData);
+    console.log('🔗 Stringified data:', JSON.stringify(complaintData));
+    
     return this.request('/complaints/submit', {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(complaintData),
@@ -136,6 +145,22 @@ class ApiService {
     }
 
     return response.blob();
+  }
+
+  // Geocoding methods
+  async reverseGeocode(lat, lon) {
+    return this.request(`/geocode/reverse?lat=${lat}&lon=${lon}`, {
+      method: 'GET',
+    });
+  }
+
+  // Test methods
+  async testPost(data) {
+    console.log('🧪 Testing POST with data:', data);
+    return this.request('/test-post', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 

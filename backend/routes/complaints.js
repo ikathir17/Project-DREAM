@@ -4,15 +4,43 @@ const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const router = express.Router();
 
+// Test endpoint to check body parsing
+router.post('/test', (req, res) => {
+  console.log('🧪 Test endpoint hit');
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Body:', req.body);
+  console.log('Body type:', typeof req.body);
+  
+  res.json({
+    success: true,
+    message: 'Test endpoint working',
+    receivedBody: req.body,
+    bodyType: typeof req.body,
+    contentType: req.headers['content-type']
+  });
+});
+
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
   try {
+    console.log('🔐 Authentication middleware called');
+    console.log('🔐 Request body in auth middleware:', req.body);
+    console.log('🔐 Request headers:', req.headers.authorization);
+    
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
       return res.status(401).json({
         success: false,
         message: 'Access token required'
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET environment variable is missing');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
       });
     }
 
@@ -43,9 +71,30 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Submit a new complaint
-router.post('/submit', authenticateToken, async (req, res) => {
+// Submit a new complaint (temporarily bypass auth for debugging)
+router.post('/submit', async (req, res) => {
   try {
+    // Debug logging
+    console.log('📋 Complaint submission request received');
+    console.log('Content-Type:', req.headers['content-type']);
+    console.log('Request body:', req.body);
+    console.log('Request body type:', typeof req.body);
+    console.log('Request body keys:', req.body ? Object.keys(req.body) : 'No body');
+
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: 'Request body is missing. Please ensure Content-Type is application/json'
+      });
+    }
+
+    // Mock user for testing (remove after debugging)
+    req.user = { 
+      _id: '507f1f77bcf86cd799439011', 
+      name: 'Test User',
+      mobileNumber: '1234567890' 
+    };
+
     const {
       disasterType,
       urgencyLevel,

@@ -7,12 +7,13 @@ import './Dashboard.css';
 
 const Dashboard = () => {
   const [activePage, setActivePage] = useState('home');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
 
   const pages = {
-    home: { component: Home, label: 'Home', icon: '🏠' },
-    profile: { component: Profile, label: 'Profile', icon: '👤' },
-    settings: { component: Settings, label: 'Settings', icon: '⚙️' }
+    home: { component: Home, label: 'Home', icon: '■' },
+    profile: { component: Profile, label: 'Profile', icon: '●' },
+    settings: { component: Settings, label: 'Settings', icon: '◆' }
   };
 
   const ActiveComponent = pages[activePage].component;
@@ -21,11 +22,31 @@ const Dashboard = () => {
     logout();
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const handlePageChange = (page) => {
+    setActivePage(page);
+    setSidebarOpen(false); // Close sidebar after navigation on mobile
+  };
+
   return (
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-content">
-          <h1>Dashboard</h1>
+          <div className="header-left">
+            <button 
+              className="sidebar-toggle"
+              onClick={toggleSidebar}
+              aria-label="Toggle sidebar"
+            >
+              <span className="hamburger-line"></span>
+              <span className="hamburger-line"></span>
+              <span className="hamburger-line"></span>
+            </button>
+            <h1>Dashboard</h1>
+          </div>
           <div className="user-info">
             <span className="user-name">Welcome, {user?.name}</span>
             <button onClick={handleLogout} className="logout-button">
@@ -36,18 +57,21 @@ const Dashboard = () => {
       </header>
 
       <div className="dashboard-content">
-        <nav className="sidebar">
-          <div className="nav-items">
-            {Object.entries(pages).map(([key, page]) => (
-              <button
-                key={key}
-                className={`nav-item ${activePage === key ? 'active' : ''}`}
-                onClick={() => setActivePage(key)}
-              >
-                <span className="nav-icon">{page.icon}</span>
-                <span className="nav-label">{page.label}</span>
-              </button>
-            ))}
+        <nav className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
+          <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
+          <div className="sidebar-content">
+            <div className="nav-items">
+              {Object.entries(pages).map(([key, page]) => (
+                <button
+                  key={key}
+                  className={`nav-item ${activePage === key ? 'active' : ''}`}
+                  onClick={() => handlePageChange(key)}
+                >
+                  <span className="nav-icon">{page.icon}</span>
+                  <span className="nav-label">{page.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </nav>
 

@@ -1,10 +1,11 @@
 .location-map-container {
-  margin: 24px 0;
-  border: 2px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 28px;
+  margin: 16px 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  width: 100%;
 }
 
 .map-header {

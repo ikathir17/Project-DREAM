@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import api from '../services/api';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -22,31 +23,36 @@ const emergencyIcon = new L.Icon({
 });
 
 // Component to handle map clicks
+// Helper function for reverse geocoding
+const getReverseGeocode = async (lat, lng, onLocationSelect) => {
+  try {
+    const data = await api.reverseGeocode(lat, lng);
+    const address = data.address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    onLocationSelect({
+      lat: lat,
+      lng: lng,
+      address: address
+    });
+  } catch (error) {
+    console.error('Reverse geocoding failed:', error);
+    // Fallback to coordinates
+    const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    onLocationSelect({
+      lat: lat,
+      lng: lng,
+      address: address
+    });
+  }
+};
+
 function LocationMarker({ position, setPosition, onLocationSelect }) {
   useMapEvents({
     click(e) {
       const newPosition = [e.latlng.lat, e.latlng.lng];
       setPosition(newPosition);
       
-      // Reverse geocoding to get address
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
-        .then(response => response.json())
-        .then(data => {
-          const address = data.display_name || `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
-          onLocationSelect({
-            lat: e.latlng.lat,
-            lng: e.latlng.lng,
-            address: address
-          });
-        })
-        .catch(() => {
-          // Fallback to coordinates if geocoding fails
-          onLocationSelect({
-            lat: e.latlng.lat,
-            lng: e.latlng.lng,
-            address: `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`
-          });
-        });
+      // Reverse geocoding to get address using our backend proxy
+      getReverseGeocode(e.latlng.lat, e.latlng.lng, onLocationSelect);
     },
   });
 
@@ -87,24 +93,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
           setIsGettingLocation(false);
           
           // Automatically get address for current location and call onLocationSelect
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`)
-            .then(response => response.json())
-            .then(data => {
-              const address = data.display_name || `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
-              onLocationSelect({
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-                address: address
-              });
-            })
-            .catch(() => {
-              // Fallback to coordinates if geocoding fails
-              onLocationSelect({
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-                address: `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`
-              });
-            });
+          getReverseGeocode(position.coords.latitude, position.coords.longitude, onLocationSelect);
         },
         (error) => {
           console.log('High accuracy geolocation failed:', error);
@@ -120,23 +109,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
               setIsGettingLocation(false);
               
               // Get address for fallback location
-              fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`)
-                .then(response => response.json())
-                .then(data => {
-                  const address = data.display_name || `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
-                  onLocationSelect({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                    address: address
-                  });
-                })
-                .catch(() => {
-                  onLocationSelect({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                    address: `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`
-                  });
-                });
+              getReverseGeocode(position.coords.latitude, position.coords.longitude, onLocationSelect);
             },
             (fallbackError) => {
               console.log('Geolocation completely failed:', fallbackError);
@@ -168,23 +141,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
       setMapCenter(userLocation);
       
       // Get address for current location
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLocation[0]}&lon=${userLocation[1]}`)
-        .then(response => response.json())
-        .then(data => {
-          const address = data.display_name || `${userLocation[0].toFixed(6)}, ${userLocation[1].toFixed(6)}`;
-          onLocationSelect({
-            lat: userLocation[0],
-            lng: userLocation[1],
-            address: address
-          });
-        })
-        .catch(() => {
-          onLocationSelect({
-            lat: userLocation[0],
-            lng: userLocation[1],
-            address: `${userLocation[0].toFixed(6)}, ${userLocation[1].toFixed(6)}`
-          });
-        });
+      getReverseGeocode(userLocation[0], userLocation[1], onLocationSelect);
     }
   };
 

@@ -147,13 +147,13 @@ const AudioRecorder = ({ onAudioRecorded, disabled = false }) => {
   return (
     <div className="audio-recorder">
       <div className="recorder-header">
-        <h4>🎤 Voice Description (Optional)</h4>
+        <h4>Voice Description (Optional)</h4>
         <p>Record additional details about the emergency situation</p>
       </div>
 
       {error && (
         <div className="recorder-error">
-          <span>⚠️ {error}</span>
+          <span>{error}</span>
         </div>
       )}
 
@@ -167,7 +167,7 @@ const AudioRecorder = ({ onAudioRecorded, disabled = false }) => {
                 disabled={disabled}
                 className="record-btn start"
               >
-                <span className="record-icon">🎤</span>
+                <span className="record-icon">●</span>
                 Start Recording
               </button>
             ) : (
@@ -177,7 +177,7 @@ const AudioRecorder = ({ onAudioRecorded, disabled = false }) => {
                   onClick={stopRecording}
                   className="record-btn stop"
                 >
-                  <span className="record-icon recording">⏹️</span>
+                  <span className="record-icon recording">■</span>
                   Stop Recording
                 </button>
                 <div className="recording-timer">
@@ -191,8 +191,8 @@ const AudioRecorder = ({ onAudioRecorded, disabled = false }) => {
           <div className="playback-section">
             <div className="audio-info">
               <div className="audio-details">
-                <span className="audio-duration">🕒 {formatTime(recordingTime)}</span>
-                <span className="audio-size">📁 {getFileSizeString(audioBlob.size)}</span>
+                <span className="audio-duration">Duration: {formatTime(recordingTime)}</span>
+                <span className="audio-size">Size: {getFileSizeString(audioBlob.size)}</span>
               </div>
               
               <div className="playback-controls">
@@ -201,7 +201,6 @@ const AudioRecorder = ({ onAudioRecorded, disabled = false }) => {
                   onClick={playAudio}
                   className="play-btn"
                 >
-                  {isPlaying ? '⏸️' : '▶️'}
                   {isPlaying ? 'Pause' : 'Play'}
                 </button>
                 
@@ -210,7 +209,7 @@ const AudioRecorder = ({ onAudioRecorded, disabled = false }) => {
                   onClick={deleteRecording}
                   className="delete-btn"
                 >
-                  🗑️ Delete
+                  Delete
                 </button>
               </div>
             </div>
@@ -229,10 +228,10 @@ const AudioRecorder = ({ onAudioRecorded, disabled = false }) => {
       <div className="recorder-instructions">
         <p><strong>Tips for better recording:</strong></p>
         <ul>
-          <li>🔇 Find a quiet location if possible</li>
-          <li>📱 Hold device close to your mouth</li>
-          <li>🗣️ Speak clearly and describe the situation in detail</li>
-          <li>⏱️ Keep recordings under 2 minutes for faster processing</li>
+          <li>Find a quiet location if possible</li>
+          <li>Hold device close to your mouth</li>
+          <li>Speak clearly and describe the situation in detail</li>
+          <li>Keep recordings under 2 minutes for faster processing</li>
         </ul>
       </div>
     </div>
