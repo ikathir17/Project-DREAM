@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Home from '../pages/Home';
 import Profile from '../pages/Profile';
 import Settings from '../pages/Settings';
+import NearbyComplaints from '../pages/NearbyComplaints';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -12,6 +13,7 @@ const Dashboard = () => {
 
   const pages = {
     home: { component: Home, label: 'Home', icon: '■' },
+    nearby: { component: NearbyComplaints, label: 'Nearby Complaints', icon: '📍' },
     profile: { component: Profile, label: 'Profile', icon: '●' },
     settings: { component: Settings, label: 'Settings', icon: '◆' }
   };

@@ -56,8 +56,8 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Submit a new complaint (temporarily bypass auth for debugging)
-router.post('/submit', async (req, res) => {
+// Submit a new complaint
+router.post('/submit', authenticateToken, async (req, res) => {
   try {
     // Debug logging
     console.log('📋 Complaint submission request received');
@@ -72,13 +72,6 @@ router.post('/submit', async (req, res) => {
         message: 'Request body is missing. Please ensure Content-Type is application/json'
       });
     }
-
-    // Mock user for testing (remove after debugging)
-    req.user = { 
-      _id: '507f1f77bcf86cd799439011', 
-      name: 'Test User',
-      mobileNumber: '1234567890' 
-    };
 
     const {
       disasterType,
@@ -340,6 +333,208 @@ router.get('/my-complaints', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch complaints'
+    });
+  }
+});
+
+// Get nearby complaints within 5km radius
+router.get('/nearby', authenticateToken, async (req, res) => {
+  try {
+    const { lat, lng, page = 1, limit = 20 } = req.query;
+
+    // Validate coordinates
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required'
+      });
+    }
+
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coordinates provided'
+      });
+    }
+
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coordinates out of valid range'
+      });
+    }
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Calculate bounding box for approximate 5km radius
+    const kmInDegrees = 5 / 111; // Rough conversion: 1 degree ≈ 111 km
+    const latMin = latitude - kmInDegrees;
+    const latMax = latitude + kmInDegrees;
+    const lngMin = longitude - kmInDegrees;
+    const lngMax = longitude + kmInDegrees;
+
+    console.log(`🔍 Searching for complaints in bounding box:`, {
+      latMin, latMax, lngMin, lngMax,
+      userLat: latitude, userLng: longitude
+    });
+
+    // Find complaints within approximate 5km bounding box
+    const nearbyComplaints = await Complaint.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: { $in: ['pending', 'acknowledged', 'in_progress'] },
+          'location.coordinates.lat': { $gte: latMin, $lte: latMax },
+          'location.coordinates.lng': { $gte: lngMin, $lte: lngMax }
+        }
+      },
+      {
+        $addFields: {
+          // Simple distance approximation in km
+          distanceKm: {
+            $round: [
+              {
+                $multiply: [
+                  111, // Rough km per degree
+                  {
+                    $sqrt: {
+                      $add: [
+                        { $pow: [{ $subtract: ['$location.coordinates.lat', latitude] }, 2] },
+                        { $pow: [{ $subtract: ['$location.coordinates.lng', longitude] }, 2] }
+                      ]
+                    }
+                  }
+                ]
+              },
+              2
+            ]
+          }
+        }
+      },
+      {
+        $match: {
+          distanceKm: { $lte: 5 } // Filter to actual 5km radius
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'submittedBy',
+          foreignField: '_id',
+          as: 'submitter',
+          pipeline: [
+            { $project: { name: 1, mobileNumber: 1 } }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          submitter: { $arrayElemAt: ['$submitter', 0] }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          disasterType: 1,
+          urgencyLevel: 1,
+          status: 1,
+          priority: 1,
+          'location.address': 1,
+          'location.coordinates': 1,
+          description: 1,
+          affectedPeople: 1,
+          resourcesNeeded: 1,
+          customHelp: 1,
+          submitterName: 1,
+          contactNumber: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          distanceKm: 1,
+          submitter: 1,
+          // Exclude sensitive data like images, audio, and detailed notes
+          images: { $size: { $ifNull: ['$images', []] } }, // Just count of images
+          hasAudio: { $cond: [{ $ifNull: ['$audioRecording.data', false] }, true, false] }
+        }
+      },
+      { $sort: { distanceKm: 1, priority: 1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limitNum }
+    ]);
+
+    // Get total count for pagination using same bounding box approach
+    const totalCount = await Complaint.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: { $in: ['pending', 'acknowledged', 'in_progress'] },
+          'location.coordinates.lat': { $gte: latMin, $lte: latMax },
+          'location.coordinates.lng': { $gte: lngMin, $lte: lngMax }
+        }
+      },
+      {
+        $addFields: {
+          distanceKm: {
+            $round: [
+              {
+                $multiply: [
+                  111,
+                  {
+                    $sqrt: {
+                      $add: [
+                        { $pow: [{ $subtract: ['$location.coordinates.lat', latitude] }, 2] },
+                        { $pow: [{ $subtract: ['$location.coordinates.lng', longitude] }, 2] }
+                      ]
+                    }
+                  }
+                ]
+              },
+              2
+            ]
+          }
+        }
+      },
+      {
+        $match: {
+          distanceKm: { $lte: 5 }
+        }
+      },
+      { $count: 'total' }
+    ]);
+
+    const total = totalCount[0]?.total || 0;
+
+    console.log(`🔍 Found ${nearbyComplaints.length} complaints, total: ${total}`);
+
+    res.json({
+      success: true,
+      data: {
+        complaints: nearbyComplaints,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum)
+        },
+        searchCenter: {
+          lat: latitude,
+          lng: longitude
+        },
+        radiusKm: 5
+      }
+    });
+
+  } catch (error) {
+    console.error('Get nearby complaints error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch nearby complaints',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

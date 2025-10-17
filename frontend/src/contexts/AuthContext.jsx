@@ -13,6 +13,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }) => {
     
     if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
+      setToken(savedToken);
       // Verify token is still valid by fetching profile
       verifyToken(savedToken);
     } else {
@@ -29,13 +31,14 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const verifyToken = async (token) => {
+  const verifyToken = async (tokenToVerify) => {
     try {
-      const response = await api.getProfile(token);
+      const response = await api.getProfile(tokenToVerify);
       if (response.success) {
         setUser(response.data.user);
+        setToken(tokenToVerify);
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', token);
+        localStorage.setItem('token', tokenToVerify);
       } else {
         // Token is invalid, clear storage
         clearAuth();
@@ -50,6 +53,7 @@ export const AuthProvider = ({ children }) => {
 
   const clearAuth = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
   };
@@ -68,6 +72,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.verifyOTP(mobileNumber, otp);
       if (response.success) {
         setUser(response.data.user);
+        setToken(response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('token', response.data.token);
         return response.data;
@@ -114,6 +119,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
     sendOTP,
     verifyOTP,
     updateProfile,

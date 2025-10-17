@@ -132,6 +132,15 @@ class ApiService {
     });
   }
 
+  async getNearbyComplaints(token, lat, lng, page = 1, limit = 20) {
+    return this.request(`/complaints/nearby?lat=${lat}&lng=${lng}&page=${page}&limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
   async getComplaintAudio(token, complaintId) {
     const response = await fetch(`${this.baseURL}/complaints/${complaintId}/audio`, {
       method: 'GET',
