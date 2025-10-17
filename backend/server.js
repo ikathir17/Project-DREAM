@@ -9,12 +9,9 @@ const complaintRoutes = require('./routes/complaints');
 try {
   if (typeof fetch === 'undefined') {
     global.fetch = require('node-fetch');
-    console.log('📦 Using node-fetch for HTTP requests');
-  } else {
-    console.log('📦 Using native fetch for HTTP requests');
   }
 } catch (error) {
-  console.log('⚠️ node-fetch not available, using native fetch');
+  // Fallback to native fetch
 }
 
 // Load environment variables with higher priority
@@ -30,12 +27,16 @@ if (env.parsed) {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Debug environment variables
-console.log('🔧 Environment Variables:');
-console.log('MONGODB_URI:', process.env.MONGODB_URI);
-console.log('PORT:', process.env.PORT);
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Present' : 'Missing');
+// Validate required environment variables
+if (!process.env.MONGODB_URI) {
+  console.error('❌ MONGODB_URI environment variable is not set');
+  process.exit(1);
+}
+
+if (!process.env.JWT_SECRET) {
+  console.error('❌ JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
 
 // Middleware
 app.use(cors({
@@ -43,25 +44,17 @@ app.use(cors({
   credentials: true
 }));
 
-// Debug middleware to log all requests
-app.use((req, res, next) => {
-  console.log(`🌐 ${req.method} ${req.path}`);
-  console.log('Headers:', req.headers);
-  console.log('Content-Type:', req.headers['content-type']);
-  next();
-});
+// Request logging middleware (only in development)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Additional debug middleware to check body parsing AFTER JSON parsing
-app.use((req, res, next) => {
-  console.log('🔍 Body parsing check (after JSON middleware):');
-  console.log('Body exists:', !!req.body);
-  console.log('Body type:', typeof req.body);
-  console.log('Body content:', req.body);
-  next();
-});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -76,21 +69,39 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Test POST endpoint
-app.post('/api/test-post', (req, res) => {
-  console.log('🧪 Test POST endpoint hit');
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('Body:', req.body);
-  console.log('Body keys:', req.body ? Object.keys(req.body) : 'No body');
-  
-  res.json({
-    success: true,
-    message: 'Test POST working',
-    receivedBody: req.body,
-    bodyKeys: req.body ? Object.keys(req.body) : [],
-    contentType: req.headers['content-type']
-  });
-});
+
+// Offline location detection function
+function getOfflineLocationInfo(lat, lon) {
+  // Major countries and regions with approximate boundaries
+  const regions = [
+    { name: 'India', bounds: { minLat: 8, maxLat: 37, minLon: 68, maxLon: 97 } },
+    { name: 'United States', bounds: { minLat: 25, maxLat: 49, minLon: -125, maxLon: -66 } },
+    { name: 'China', bounds: { minLat: 18, maxLat: 54, minLon: 73, maxLon: 135 } },
+    { name: 'Russia', bounds: { minLat: 41, maxLat: 82, minLon: 19, maxLon: 169 } },
+    { name: 'Brazil', bounds: { minLat: -34, maxLat: 5, minLon: -74, maxLon: -32 } },
+    { name: 'Australia', bounds: { minLat: -44, maxLat: -10, minLon: 113, maxLon: 154 } },
+    { name: 'Canada', bounds: { minLat: 42, maxLat: 84, minLon: -141, maxLon: -52 } },
+    { name: 'Europe', bounds: { minLat: 35, maxLat: 71, minLon: -10, maxLon: 40 } },
+    { name: 'Africa', bounds: { minLat: -35, maxLat: 37, minLon: -18, maxLon: 52 } },
+    { name: 'Southeast Asia', bounds: { minLat: -11, maxLat: 28, minLon: 92, maxLon: 141 } }
+  ];
+
+  for (const region of regions) {
+    const { minLat, maxLat, minLon, maxLon } = region.bounds;
+    if (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) {
+      return region.name;
+    }
+  }
+
+  // Ocean/remote area detection
+  if (Math.abs(lat) < 60) {
+    return 'Ocean/Remote Area';
+  } else if (lat > 60) {
+    return 'Arctic Region';
+  } else {
+    return 'Antarctic Region';
+  }
+}
 
 // Reverse geocoding proxy endpoint
 app.get('/api/geocode/reverse', async (req, res) => {
@@ -104,69 +115,123 @@ app.get('/api/geocode/reverse', async (req, res) => {
       });
     }
 
-    // Use fetch to call Nominatim API from backend
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-      {
-        headers: {
-          'User-Agent': 'Project-DREAM/1.0 (Emergency Response System)'
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    try {
+      // Try Nominatim first
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'Project-DREAM/1.0 (Emergency Response System)'
+          },
+          signal: controller.signal
         }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Nominatim API error: ${response.status}`);
       }
-    );
 
-    if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.status}`);
+      const data = await response.json();
+      
+      // Format a more readable address
+      let formattedAddress = '';
+      if (data.address) {
+        const addr = data.address;
+        const parts = [
+          addr.house_number,
+          addr.road,
+          addr.neighbourhood || addr.suburb,
+          addr.city || addr.town || addr.village,
+          addr.state,
+          addr.country
+        ].filter(Boolean);
+        formattedAddress = parts.join(', ');
+      }
+      
+      res.json({
+        success: true,
+        address: formattedAddress || data.display_name || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(6)}`,
+        data: data,
+        source: 'nominatim'
+      });
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      // Try alternative geocoding service (BigDataCloud - free tier)
+      try {
+        console.log('Nominatim failed, trying alternative service...');
+        const altController = new AbortController();
+        const altTimeoutId = setTimeout(() => altController.abort(), 3000);
+        
+        const altResponse = await fetch(
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
+          {
+            signal: altController.signal
+          }
+        );
+        
+        clearTimeout(altTimeoutId);
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          
+          let altAddress = '';
+          if (altData) {
+            const parts = [
+              altData.locality,
+              altData.city,
+              altData.principalSubdivision,
+              altData.countryName
+            ].filter(Boolean);
+            altAddress = parts.join(', ');
+          }
+          
+          return res.json({
+            success: true,
+            address: altAddress || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(6)}`,
+            data: altData,
+            source: 'bigdatacloud'
+          });
+        }
+      } catch (altError) {
+        console.log('Alternative geocoding also failed:', altError.message);
+      }
+      
+      throw fetchError;
     }
-
-    const data = await response.json();
-    
-    res.json({
-      success: true,
-      address: data.display_name || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(6)}`,
-      data: data
-    });
 
   } catch (error) {
     console.error('Reverse geocoding error:', error);
+    console.error('Error type:', error.constructor.name);
+    console.error('Error code:', error.code);
     
-    // Fallback to coordinates if geocoding fails
+    // Enhanced fallback with approximate location description
     const { lat, lon } = req.query;
+    const latNum = parseFloat(lat);
+    const lonNum = parseFloat(lon);
+    
+    // Enhanced geographic region detection
+    let region = getOfflineLocationInfo(latNum, lonNum);
+    
+    console.log(`Falling back to offline geocoding: ${latNum}, ${lonNum} -> ${region}`);
+    
     res.json({
       success: true,
-      address: `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(6)}`,
-      fallback: true
+      address: `${latNum.toFixed(6)}, ${lonNum.toFixed(6)} (${region})`,
+      fallback: true,
+      source: 'offline',
+      error: 'Geocoding services temporarily unavailable'
     });
   }
 });
 
-// Test database connection route
-app.get('/api/test-db', async (req, res) => {
-  try {
-    const User = require('./models/User');
-    
-    // Create a test document to force database creation
-    const testUser = new User({
-      mobileNumber: '9999999999',
-      name: 'Test User',
-      isActive: true
-    });
-    
-    await testUser.save();
-    
-    res.json({
-      success: true,
-      message: 'Database test successful',
-      database: mongoose.connection.db.databaseName,
-      collections: await mongoose.connection.db.listCollections().toArray()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Database test failed',
-      error: error.message
-    });
-  }
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -187,41 +252,19 @@ app.use((req, res) => {
 });
 
 // Connect to MongoDB
-console.log('🔗 Attempting to connect to MongoDB...');
-
-// Use Atlas URI from environment variables
 const atlasURI = process.env.MONGODB_URI;
 
-if (!atlasURI) {
-  console.error('❌ MONGODB_URI environment variable is not set');
-  process.exit(1);
-}
-
-if (!process.env.JWT_SECRET) {
-  console.error('❌ JWT_SECRET environment variable is not set');
-  process.exit(1);
-}
-
-console.log('📍 Using URI:', atlasURI);
-
-// Force Atlas connection by explicitly setting options
+// Connect to MongoDB with minimal logging
 mongoose.connect(atlasURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-  socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-  family: 4 // Use IPv4, skip trying IPv6
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  family: 4
 })
 .then(() => {
-  console.log('✅ Connected to MongoDB Atlas');
-  console.log(`📊 Database: ${mongoose.connection.db.databaseName}`);
-  console.log(`🌐 Host: ${mongoose.connection.host}`);
-  console.log(`🔗 Port: ${mongoose.connection.port}`);
+  console.log('✅ Connected to MongoDB');
   // Start server
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📱 Frontend URL: http://localhost:5173`);
-    console.log(`🔗 Backend URL: http://localhost:${PORT}`);
   });
 })
 .catch((error) => {

@@ -154,14 +154,6 @@ class ApiService {
     });
   }
 
-  // Test methods
-  async testPost(data) {
-    console.log('🧪 Testing POST with data:', data);
-    return this.request('/test-post', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
 }
 
 export default new ApiService();

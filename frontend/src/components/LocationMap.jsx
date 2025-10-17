@@ -23,36 +23,63 @@ const emergencyIcon = new L.Icon({
 });
 
 // Component to handle map clicks
-// Helper function for reverse geocoding
-const getReverseGeocode = async (lat, lng, onLocationSelect) => {
+// Helper function for reverse geocoding with retry logic
+const getReverseGeocode = async (lat, lng, onLocationSelect, setGeocodingStatus, retryCount = 0) => {
   try {
+    setGeocodingStatus('loading');
     const data = await api.reverseGeocode(lat, lng);
-    const address = data.address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    let address = data.address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    
+    // Add source indicator for user awareness
+    if (data.fallback) {
+      address += ' (Approximate location)';
+      setGeocodingStatus('fallback');
+    } else {
+      setGeocodingStatus('success');
+    }
+    
     onLocationSelect({
       lat: lat,
       lng: lng,
-      address: address
+      address: address,
+      source: data.source || 'unknown',
+      fallback: data.fallback || false
     });
   } catch (error) {
     console.error('Reverse geocoding failed:', error);
-    // Fallback to coordinates
-    const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    
+    // Retry once if it's the first attempt
+    if (retryCount === 0) {
+      console.log('Retrying geocoding...');
+      setGeocodingStatus('retrying');
+      setTimeout(() => {
+        getReverseGeocode(lat, lng, onLocationSelect, setGeocodingStatus, 1);
+      }, 1000);
+      return;
+    }
+    
+    // Final fallback to coordinates with helpful message
+    setGeocodingStatus('failed');
+    const address = `${lat.toFixed(6)}, ${lng.toFixed(6)} (Location services unavailable)`;
     onLocationSelect({
       lat: lat,
       lng: lng,
-      address: address
+      address: address,
+      source: 'coordinates',
+      fallback: true,
+      error: 'Unable to get address - using coordinates'
     });
   }
 };
 
-function LocationMarker({ position, setPosition, onLocationSelect }) {
+function LocationMarker({ position, setPosition, onLocationSelect, setGeocodingStatus }) {
   useMapEvents({
     click(e) {
       const newPosition = [e.latlng.lat, e.latlng.lng];
       setPosition(newPosition);
       
       // Reverse geocoding to get address using our backend proxy
-      getReverseGeocode(e.latlng.lat, e.latlng.lng, onLocationSelect);
+      getReverseGeocode(e.latlng.lat, e.latlng.lng, onLocationSelect, setGeocodingStatus);
     },
   });
 
@@ -77,6 +104,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // Default to India center
   const [isGettingLocation, setIsGettingLocation] = useState(true);
   const [locationError, setLocationError] = useState(null);
+  const [geocodingStatus, setGeocodingStatus] = useState(null);
 
   // Get user's current location with high accuracy
   useEffect(() => {
@@ -93,7 +121,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
           setIsGettingLocation(false);
           
           // Automatically get address for current location and call onLocationSelect
-          getReverseGeocode(position.coords.latitude, position.coords.longitude, onLocationSelect);
+          getReverseGeocode(position.coords.latitude, position.coords.longitude, onLocationSelect, setGeocodingStatus);
         },
         (error) => {
           console.log('High accuracy geolocation failed:', error);
@@ -109,7 +137,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
               setIsGettingLocation(false);
               
               // Get address for fallback location
-              getReverseGeocode(position.coords.latitude, position.coords.longitude, onLocationSelect);
+              getReverseGeocode(position.coords.latitude, position.coords.longitude, onLocationSelect, setGeocodingStatus);
             },
             (fallbackError) => {
               console.log('Geolocation completely failed:', fallbackError);
@@ -141,7 +169,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
       setMapCenter(userLocation);
       
       // Get address for current location
-      getReverseGeocode(userLocation[0], userLocation[1], onLocationSelect);
+      getReverseGeocode(userLocation[0], userLocation[1], onLocationSelect, setGeocodingStatus);
     }
   };
 
@@ -166,6 +194,17 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
           </div>
         ) : (
           <p>Click on the map to mark the exact location of the emergency</p>
+        )}
+        
+        {/* Geocoding Status Indicator */}
+        {geocodingStatus && (
+          <div className={`geocoding-status ${geocodingStatus}`}>
+            {geocodingStatus === 'loading' && <span>🔄 Getting address...</span>}
+            {geocodingStatus === 'retrying' && <span>🔄 Retrying address lookup...</span>}
+            {geocodingStatus === 'success' && <span>✅ Address found</span>}
+            {geocodingStatus === 'fallback' && <span>⚠️ Using approximate address</span>}
+            {geocodingStatus === 'failed' && <span>❌ Address lookup failed - using coordinates</span>}
+          </div>
         )}
         
         <div className="map-controls">
@@ -204,6 +243,7 @@ const LocationMap = ({ onLocationSelect, initialLocation }) => {
             position={position}
             setPosition={setPosition}
             onLocationSelect={onLocationSelect}
+            setGeocodingStatus={setGeocodingStatus}
           />
         </MapContainer>
       </div>

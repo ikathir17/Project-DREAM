@@ -101,6 +101,40 @@ const complaintSchema = new mongoose.Schema({
     }
   },
   
+  // Image Attachments
+  images: [{
+    data: {
+      type: String, // Base64 encoded image data
+      required: true,
+      maxlength: 6710886 // 5MB limit for base64 image (approx 5MB * 1.33)
+    },
+    filename: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    mimeType: {
+      type: String,
+      required: true,
+      enum: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    },
+    size: {
+      type: Number, // File size in bytes
+      required: true,
+      min: 0,
+      max: 5242880 // 5MB limit for individual images
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 200
+    }
+  }],
+  
   // Status and Tracking
   status: {
     type: String,

@@ -27,27 +27,27 @@
 }
 
 .location-status {
-  margin-bottom: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  text-align: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 8px 0;
+  font-size: 14px;
 }
 
 .location-status.getting-location {
-  background: #dbeafe;
-  border: 1px solid #93c5fd;
-  color: #1e40af;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
 }
 
 .location-status.success {
   background: #dcfce7;
-  border: 1px solid #86efac;
+  border: 1px solid #22c55e;
   color: #166534;
 }
 
 .location-status.error {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
+  background: #fee2e2;
+  border: 1px solid #ef4444;
   color: #dc2626;
 }
 
@@ -84,6 +84,41 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Geocoding status styles */
+.geocoding-status {
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin: 6px 0;
+  font-size: 12px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.geocoding-status.loading,
+.geocoding-status.retrying {
+  background: #e0f2fe;
+  border: 1px solid #0284c7;
+  color: #0c4a6e;
+}
+
+.geocoding-status.success {
+  background: #f0fdf4;
+  border: 1px solid #16a34a;
+  color: #14532d;
+}
+
+.geocoding-status.fallback {
+  background: #fefce8;
+  border: 1px solid #eab308;
+  color: #713f12;
+}
+
+.geocoding-status.failed {
+  background: #fef2f2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
 }
 
 .map-controls {

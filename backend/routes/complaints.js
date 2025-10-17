@@ -4,21 +4,6 @@ const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const router = express.Router();
 
-// Test endpoint to check body parsing
-router.post('/test', (req, res) => {
-  console.log('🧪 Test endpoint hit');
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('Body:', req.body);
-  console.log('Body type:', typeof req.body);
-  
-  res.json({
-    success: true,
-    message: 'Test endpoint working',
-    receivedBody: req.body,
-    bodyType: typeof req.body,
-    contentType: req.headers['content-type']
-  });
-});
 
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
@@ -105,7 +90,8 @@ router.post('/submit', async (req, res) => {
       affectedPeople,
       resourcesNeeded,
       customHelp,
-      audioRecording
+      audioRecording,
+      images
     } = req.body;
 
     // Validate required fields
@@ -165,6 +151,70 @@ router.post('/submit', async (req, res) => {
       }
     }
 
+    // Process images if provided
+    let processedImages = [];
+    if (images && Array.isArray(images) && images.length > 0) {
+      try {
+        // Validate image count
+        if (images.length > 5) {
+          return res.status(400).json({
+            success: false,
+            message: 'Too many images. Maximum 5 images allowed.'
+          });
+        }
+
+        for (const image of images) {
+          // Validate required image fields
+          if (!image.data || !image.filename || !image.mimeType || !image.size) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid image format. Missing required fields.'
+            });
+          }
+
+          // Validate image type
+          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+          if (!allowedTypes.includes(image.mimeType)) {
+            return res.status(400).json({
+              success: false,
+              message: `Invalid image type: ${image.mimeType}. Allowed types: ${allowedTypes.join(', ')}`
+            });
+          }
+
+          // Validate image size (5MB limit)
+          if (image.size > 5 * 1024 * 1024) {
+            return res.status(400).json({
+              success: false,
+              message: `Image ${image.filename} is too large. Maximum size is 5MB.`
+            });
+          }
+
+          // Validate base64 data
+          if (!image.data.startsWith('data:image/')) {
+            return res.status(400).json({
+              success: false,
+              message: `Invalid image data format for ${image.filename}`
+            });
+          }
+
+          processedImages.push({
+            data: image.data,
+            filename: image.filename,
+            mimeType: image.mimeType,
+            size: image.size,
+            description: image.description || '',
+            uploadedAt: new Date()
+          });
+        }
+      } catch (error) {
+        console.error('Image processing error:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Error processing images. Please try again.'
+        });
+      }
+    }
+
     // Create new complaint
     const complaint = new Complaint({
       submittedBy: req.user._id,
@@ -184,6 +234,7 @@ router.post('/submit', async (req, res) => {
       resourcesNeeded,
       customHelp: customHelp || '',
       audioRecording: audioData,
+      images: processedImages,
       status: 'pending'
     });
 
@@ -191,6 +242,9 @@ router.post('/submit', async (req, res) => {
     let initialNote = 'Complaint submitted by user';
     if (audioData) {
       initialNote += ` (includes ${Math.round(audioData.size / 1024)}KB audio recording)`;
+    }
+    if (processedImages.length > 0) {
+      initialNote += ` (includes ${processedImages.length} image${processedImages.length > 1 ? 's' : ''})`;
     }
     
     complaint.notes.push({
@@ -217,6 +271,34 @@ router.post('/submit', async (req, res) => {
 
   } catch (error) {
     console.error('Submit complaint error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error: ' + error.message,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Duplicate entry error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    // Handle document size exceeded error
+    if (error.message && error.message.includes('BSONObj size')) {
+      return res.status(413).json({
+        success: false,
+        message: 'Request too large. Please reduce image sizes or count.',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to submit complaint. Please try again.',
@@ -419,6 +501,99 @@ router.get('/:complaintId/audio', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch audio recording'
+    });
+  }
+});
+
+// Get images for a complaint
+router.get('/:complaintId/images', authenticateToken, async (req, res) => {
+  try {
+    const complaint = await Complaint.findOne({
+      _id: req.params.complaintId,
+      submittedBy: req.user._id
+    }).select('images');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    if (!complaint.images || complaint.images.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No images found for this complaint'
+      });
+    }
+
+    // Return image metadata (without base64 data for list view)
+    const imageList = complaint.images.map((img, index) => ({
+      index,
+      filename: img.filename,
+      mimeType: img.mimeType,
+      size: img.size,
+      description: img.description,
+      uploadedAt: img.uploadedAt
+    }));
+
+    res.json({
+      success: true,
+      data: { images: imageList }
+    });
+
+  } catch (error) {
+    console.error('Get images error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch images'
+    });
+  }
+});
+
+// Get specific image from a complaint
+router.get('/:complaintId/images/:imageIndex', authenticateToken, async (req, res) => {
+  try {
+    const complaint = await Complaint.findOne({
+      _id: req.params.complaintId,
+      submittedBy: req.user._id
+    }).select('images');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    const imageIndex = parseInt(req.params.imageIndex);
+    if (isNaN(imageIndex) || imageIndex < 0 || imageIndex >= complaint.images.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Image not found'
+      });
+    }
+
+    const image = complaint.images[imageIndex];
+    
+    // Extract base64 data and convert to buffer
+    const base64Data = image.data.split(',')[1];
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    
+    // Set appropriate headers
+    res.set({
+      'Content-Type': image.mimeType,
+      'Content-Length': imageBuffer.length,
+      'Content-Disposition': `inline; filename="${image.filename}"`
+    });
+
+    res.send(imageBuffer);
+
+  } catch (error) {
+    console.error('Get image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch image'
     });
   }
 });

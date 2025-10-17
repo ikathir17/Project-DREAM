@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import LocationMap from '../components/LocationMap';
 import AudioRecorder from '../components/AudioRecorder';
+import ImageUpload from '../components/ImageUpload';
 import api from '../services/api';
 import '../components/LocationMap.css';
 import '../components/AudioRecorder.css';
+import '../components/ImageUpload.css';
 import './Home.css';
 
 const Home = () => {
@@ -19,7 +21,8 @@ const Home = () => {
     affectedPeople: '',
     resourcesNeeded: [],
     customHelp: '',
-    audioRecording: null
+    audioRecording: null,
+    images: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
@@ -93,17 +96,13 @@ const Home = () => {
     }));
   };
 
-  const testBackendPost = async () => {
-    try {
-      const testData = { test: 'data', number: 123 };
-      const result = await api.testPost(testData);
-      console.log('✅ Test POST result:', result);
-      setSubmitMessage('Test POST successful: ' + JSON.stringify(result));
-    } catch (error) {
-      console.error('❌ Test POST failed:', error);
-      setSubmitMessage('Test POST failed: ' + error.message);
-    }
+  const handleImagesChange = (images) => {
+    setFormData(prev => ({
+      ...prev,
+      images: images
+    }));
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -137,7 +136,8 @@ const Home = () => {
         affectedPeople: formData.affectedPeople,
         resourcesNeeded: formData.resourcesNeeded,
         customHelp: formData.customHelp,
-        audioRecording: formData.audioRecording?.base64 || null
+        audioRecording: formData.audioRecording?.base64 || null,
+        images: formData.images || []
       };
 
       // Debug logging
@@ -154,9 +154,12 @@ const Home = () => {
         const audioInfo = formData.audioRecording ? 
           `\nAudio recording included (${Math.round(formData.audioRecording.size / 1024)}KB)` : '';
         
+        const imageInfo = formData.images.length > 0 ? 
+          `\n${formData.images.length} image(s) attached` : '';
+        
         setSubmitMessage(`Your complaint has been submitted successfully! 
         Complaint ID: ${response.data.complaintId}
-        Priority: ${response.data.priority}${audioInfo}
+        Priority: ${response.data.priority}${audioInfo}${imageInfo}
         ${response.data.estimatedResponse?.description || 'Emergency response team will contact you soon.'}`);
       } else {
         throw new Error(response.message || 'Failed to submit complaint');
@@ -173,7 +176,8 @@ const Home = () => {
         affectedPeople: '',
         resourcesNeeded: [],
         customHelp: '',
-        audioRecording: null
+        audioRecording: null,
+        images: []
       });
     } catch (error) {
       console.error('Complaint submission error:', error);
@@ -297,6 +301,12 @@ const Home = () => {
             disabled={isSubmitting}
           />
 
+          <ImageUpload 
+            onImagesChange={handleImagesChange}
+            disabled={isSubmitting}
+            maxImages={5}
+          />
+
           <div className="form-group">
             <label htmlFor="affectedPeople">Number of People Affected</label>
             <input
@@ -355,14 +365,6 @@ const Home = () => {
         )}
 
         <div className="form-actions">
-          <button
-            type="button"
-            onClick={testBackendPost}
-            className="submit-button"
-            style={{ marginBottom: '10px', backgroundColor: '#059669' }}
-          >
-            Test Backend Connection
-          </button>
           <button
             type="submit"
             disabled={isSubmitting}
