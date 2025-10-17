@@ -793,6 +793,146 @@ router.get('/:complaintId/images/:imageIndex', authenticateToken, async (req, re
   }
 });
 
+// Get audio recording for nearby complaints (public access)
+router.get('/nearby/:complaintId/audio', authenticateToken, async (req, res) => {
+  try {
+    const complaint = await Complaint.findOne({
+      _id: req.params.complaintId,
+      isActive: true,
+      status: { $in: ['pending', 'acknowledged', 'in_progress'] }
+    }).select('audioRecording');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not accessible'
+      });
+    }
+
+    if (!complaint.audioRecording || !complaint.audioRecording.data) {
+      return res.status(404).json({
+        success: false,
+        message: 'No audio recording found for this complaint'
+      });
+    }
+
+    // Extract base64 data and convert to buffer
+    const base64Data = complaint.audioRecording.data.split(',')[1];
+    const audioBuffer = Buffer.from(base64Data, 'base64');
+    
+    // Set appropriate headers
+    res.set({
+      'Content-Type': complaint.audioRecording.mimeType || 'audio/webm',
+      'Content-Length': audioBuffer.length,
+      'Content-Disposition': `inline; filename="complaint-${req.params.complaintId}-audio.webm"`
+    });
+
+    res.send(audioBuffer);
+
+  } catch (error) {
+    console.error('Get nearby complaint audio error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch audio recording'
+    });
+  }
+});
+
+// Get images for nearby complaints (public access)
+router.get('/nearby/:complaintId/images', authenticateToken, async (req, res) => {
+  try {
+    const complaint = await Complaint.findOne({
+      _id: req.params.complaintId,
+      isActive: true,
+      status: { $in: ['pending', 'acknowledged', 'in_progress'] }
+    }).select('images');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not accessible'
+      });
+    }
+
+    if (!complaint.images || complaint.images.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No images found for this complaint'
+      });
+    }
+
+    // Return image metadata (without base64 data for list view)
+    const imageList = complaint.images.map((img, index) => ({
+      index,
+      filename: img.filename,
+      mimeType: img.mimeType,
+      size: img.size,
+      description: img.description,
+      uploadedAt: img.uploadedAt
+    }));
+
+    res.json({
+      success: true,
+      data: { images: imageList }
+    });
+
+  } catch (error) {
+    console.error('Get nearby complaint images error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch images'
+    });
+  }
+});
+
+// Get specific image from nearby complaints (public access)
+router.get('/nearby/:complaintId/images/:imageIndex', authenticateToken, async (req, res) => {
+  try {
+    const complaint = await Complaint.findOne({
+      _id: req.params.complaintId,
+      isActive: true,
+      status: { $in: ['pending', 'acknowledged', 'in_progress'] }
+    }).select('images');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not accessible'
+      });
+    }
+
+    const imageIndex = parseInt(req.params.imageIndex);
+    if (isNaN(imageIndex) || imageIndex < 0 || imageIndex >= complaint.images.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Image not found'
+      });
+    }
+
+    const image = complaint.images[imageIndex];
+    
+    // Extract base64 data and convert to buffer
+    const base64Data = image.data.split(',')[1];
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    
+    // Set appropriate headers
+    res.set({
+      'Content-Type': image.mimeType,
+      'Content-Length': imageBuffer.length,
+      'Content-Disposition': `inline; filename="${image.filename}"`
+    });
+
+    res.send(imageBuffer);
+
+  } catch (error) {
+    console.error('Get nearby complaint image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch image'
+    });
+  }
+});
+
 // Get complaints statistics for user
 router.get('/stats/summary', authenticateToken, async (req, res) => {
   try {

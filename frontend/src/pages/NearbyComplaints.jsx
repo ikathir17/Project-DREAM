@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
+import MediaModal from '../components/MediaModal';
 import './NearbyComplaints.css';
 
 // Helper function to check if token is expired
@@ -28,6 +29,9 @@ const NearbyComplaints = () => {
   });
   const [locationError, setLocationError] = useState('');
   const [searchCenter, setSearchCenter] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [mediaType, setMediaType] = useState(null);
 
   // Get user's current location
   const getCurrentLocation = () => {
@@ -122,6 +126,19 @@ const NearbyComplaints = () => {
     if (userLocation && authToken && newPage >= 1 && newPage <= pagination.pages) {
       fetchNearbyComplaints(userLocation.lat, userLocation.lng, newPage);
     }
+  };
+
+  // Handle media modal
+  const openMediaModal = (complaint, type) => {
+    setSelectedComplaint(complaint);
+    setMediaType(type);
+    setModalOpen(true);
+  };
+
+  const closeMediaModal = () => {
+    setModalOpen(false);
+    setSelectedComplaint(null);
+    setMediaType(null);
   };
 
   // Format date
@@ -313,10 +330,22 @@ const NearbyComplaints = () => {
                   {(complaint.images > 0 || complaint.hasAudio) && (
                     <div className="media-indicators">
                       {complaint.images > 0 && (
-                        <span className="media-badge">📷 {complaint.images}</span>
+                        <button 
+                          className="media-badge clickable"
+                          onClick={() => openMediaModal(complaint, 'images')}
+                          title="View images"
+                        >
+                          📷 {complaint.images}
+                        </button>
                       )}
                       {complaint.hasAudio && (
-                        <span className="media-badge">🎵 Audio</span>
+                        <button 
+                          className="media-badge clickable"
+                          onClick={() => openMediaModal(complaint, 'audio')}
+                          title="Play audio recording"
+                        >
+                          🎵 Audio
+                        </button>
                       )}
                     </div>
                   )}
@@ -363,6 +392,15 @@ const NearbyComplaints = () => {
           </button>
         </div>
       )}
+
+      {/* Media Modal */}
+      <MediaModal
+        isOpen={modalOpen}
+        onClose={closeMediaModal}
+        complaintId={selectedComplaint?._id}
+        mediaType={mediaType}
+        complaintData={selectedComplaint}
+      />
     </div>
   );
 };

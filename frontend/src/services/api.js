@@ -156,6 +156,70 @@ class ApiService {
     return response.blob();
   }
 
+  async getComplaintImages(token, complaintId) {
+    return this.request(`/complaints/${complaintId}/images`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getComplaintImage(token, complaintId, imageIndex) {
+    const response = await fetch(`${this.baseURL}/complaints/${complaintId}/images/${imageIndex}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch image');
+    }
+
+    return response.blob();
+  }
+
+  // Methods for nearby complaints media (public access)
+  async getNearbyComplaintImages(token, complaintId) {
+    return this.request(`/complaints/nearby/${complaintId}/images`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getNearbyComplaintImage(token, complaintId, imageIndex) {
+    const response = await fetch(`${this.baseURL}/complaints/nearby/${complaintId}/images/${imageIndex}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch image');
+    }
+
+    return response.blob();
+  }
+
+  async getNearbyComplaintAudio(token, complaintId) {
+    const response = await fetch(`${this.baseURL}/complaints/nearby/${complaintId}/audio`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch audio recording');
+    }
+
+    return response.blob();
+  }
+
   // Geocoding methods
   async reverseGeocode(lat, lon) {
     return this.request(`/geocode/reverse?lat=${lat}&lon=${lon}`, {
