@@ -350,6 +350,17 @@
   margin-bottom: var(--spacing-4);
 }
 
+/* Developer OTP inline notice (visible in dev or when enabled) */
+.dev-otp-notice {
+  padding: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
 /* Security Notice */
 .security-notice {
   display: flex;

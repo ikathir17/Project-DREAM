@@ -23,6 +23,7 @@ const Login = () => {
   const [step, setStep] = useState('mobile'); // 'mobile' or 'otp'
   const [mobileNumber, setMobileNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const [devOtp, setDevOtp] = useState(null);
 
   // Validation schema for mobile number
   const mobileSchema = Yup.object().shape({
@@ -48,6 +49,10 @@ const Login = () => {
         setMobileNumber(values.mobileNumber);
         setStep('otp');
         toast.success('OTP sent successfully');
+        // Store OTP for development display when allowed
+        if (response.data.otp) {
+          setDevOtp(response.data.otp);
+        }
         console.log('OTP for development:', response.data.otp);
       }
     } catch (error) {
@@ -251,6 +256,14 @@ const Login = () => {
                   </Formik>
                 </motion.div>
               ) : (
+                <>
+                  {/* Show OTP inline for development/testing when allowed */}
+                  {(process.env.REACT_APP_SHOW_OTP === 'true' || process.env.NODE_ENV !== 'production') && devOtp && (
+                    <div className="dev-otp-notice">
+                      <strong>OTP (dev):</strong> {devOtp}
+                    </div>
+                  )}
+                
                 <motion.div
                   key="otp"
                   initial={{ opacity: 0, x: 20 }}
@@ -347,6 +360,7 @@ const Login = () => {
                     )}
                   </Formik>
                 </motion.div>
+                </>
               )}
             </AnimatePresence>
           </div>
