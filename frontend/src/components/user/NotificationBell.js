@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, X, Check, CheckCheck } from 'lucide-react';
-import axios from 'axios';
+import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import './NotificationBell.css';
@@ -16,10 +16,7 @@ const NotificationBell = () => {
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5001/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/notifications');
       setNotifications(response.data.data);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -29,10 +26,7 @@ const NotificationBell = () => {
   // Fetch unread count
   const fetchUnreadCount = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5001/api/notifications/unread-count', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/notifications/unread-count');
       setUnreadCount(response.data.count);
     } catch (error) {
       console.error('Error fetching unread count:', error);
@@ -42,12 +36,7 @@ const NotificationBell = () => {
   // Mark notification as read
   const markAsRead = async (notificationId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5001/api/notifications/${notificationId}/read`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/notifications/${notificationId}/read`);
       
       // Update local state
       setNotifications(prev =>
@@ -65,12 +54,7 @@ const NotificationBell = () => {
   const markAllAsRead = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      await axios.put(
-        'http://localhost:5001/api/notifications/mark-all-read',
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put('/notifications/mark-all-read');
       
       // Update local state
       setNotifications(prev =>
@@ -87,11 +71,7 @@ const NotificationBell = () => {
   // Delete notification
   const deleteNotification = async (notificationId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(
-        `http://localhost:5001/api/notifications/${notificationId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.delete(`/notifications/${notificationId}`);
       
       // Update local state
       setNotifications(prev => prev.filter(notif => notif._id !== notificationId));
